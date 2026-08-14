@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cubit Project Flow</title>
+<style>
+  :root{
+    --cream:#f4f1ea;
+    --ink:#16213f;
+    --line:#d8d3c6;
+    --panel:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+    overflow:hidden;
+    height:100vh;
+  }
+
+  /* ---------- HEADER ---------- */
+  #app{display:flex;flex-direction:column;height:100vh;}
+
+  header{
+    padding:22px 32px 14px 32px;
+    background:var(--cream);
+    flex-shrink:0;
+  }
+  h1{
+    font-family:Georgia, 'Times New Roman', serif;
+    font-weight:900;
+    font-style:italic;
+    font-size:46px;
+    margin:0 0 16px 0;
+    color:var(--ink);
+    outline:none;
+    cursor:text;
+    letter-spacing:0.5px;
+  }
+  h1:focus{background:#ffffff55;border-radius:6px;}
+
+  .toolbar{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:10px;
+  }
+  .toolbar-group{
+    display:flex;
+    align-items:center;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+    font-size:13px;
+  }
+  .toolbar-group button{
+    background:none;border:none;
+    padding:10px 12px;
+    cursor:pointer;
+    font-size:15px;
+    color:var(--ink);
+    border-right:1px solid var(--line);
+  }
+  .toolbar-group button:last-child{border-right:none;}
+  .toolbar-group button:hover{background:#f0ede4;}
+  .toolbar-group .label{
+    padding:0 10px;
+    font-family:'Courier New', monospace;
+    font-size:12px;
+    letter-spacing:0.5px;
+    color:#7a7568;
+    white-space:nowrap;
+  }
+  .toolbar-group .value{
+    padding:0 10px;
+    min-width:34px;
+    text-align:center;
+    font-variant-numeric:tabular-nums;
+    border-right:1px solid var(--line);
+    border-left:1px solid var(--line);
+  }
+  .btn{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px 16px;
+    font-size:13px;
+    cursor:pointer;
+    color:var(--ink);
+    font-weight:600;
+  }
+  .btn:hover{background:#f0ede4;}
+  .btn-primary{
+    background:#c1571f;
+    color:#fff;
+    border-color:#c1571f;
+  }
+  .btn-primary:hover{background:#a8481a;}
+  .btn-icon{
+    width:38px;height:38px;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:16px;
+  }
+
+  /* ---------- CANVAS VIEWPORT ---------- */
+  #viewport{
+    flex:1;
+    overflow:auto;
+    position:relative;
+    border-top:1px solid var(--line);
+    background:
+      radial-gradient(circle, #cfc9b8 1px, transparent 1px) 0 0 / 22px 22px,
+      var(--cream);
+  }
+  #canvas{
+    position:relative;
+    transform-origin:0 0;
+    background:transparent;
+  }
+  .page-guide{
+    position:absolute;
+    border:1px dashed #b9a98f;
+    pointer-events:none;
+  }
+  .page-tag{
+    position:absolute;
+    font-family:'Courier New', monospace;
+    font-size:11px;
+    color:#a99a7d;
+    pointer-events:none;
+  }
+
+  /* ---------- BLOCK ---------- */
+  .block{
+    position:absolute;
+    border-radius:2px;
+    border-left:8px solid;
+    box-shadow:0 2px 6px rgba(0,0,0,0.10);
+    padding:16px 34px 16px 18px;
+    cursor:grab;
+    user-select:none;
+    transform-origin: 0 0;
+    display:flex;
+    flex-direction:column;
+  }
+  .block.dragging{cursor:grabbing; box-shadow:0 8px 20px rgba(0,0,0,0.22); z-index:500;}
+  .block.selected{outline:2px solid #2f5fa8; outline-offset:2px;}
+
+  .block-top{
+    position:absolute;
+    top:8px; left:10px; right:10px;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    pointer-events:none;
+  }
+  .block-top > *{pointer-events:auto;}
+  .status-dot{
+    width:16px;height:16px;
+    border:2px solid rgba(0,0,0,0.35);
+    border-radius:50%;
+    background:transparent;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .status-dot.done{background:rgba(0,0,0,0.45);}
+  .del-btn{
+    width:20px;height:20px;
+    border-radius:50%;
+    background:rgba(0,0,0,0.08);
+    border:none;
+    color:#333;
+    font-size:12px;
+    line-height:1;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .del-btn:hover{background:rgba(0,0,0,0.18);}
+
+  .block-text{
+    margin-top:26px;
+    outline:none;
+    white-space:pre-wrap;
+    word-break:break-word;
+    overflow:hidden;
+    flex:1;
+  }
+
+  .resize-handle{
+    position:absolute;
+    right:2px; bottom:2px;
+    width:16px;height:16px;
+    cursor:nwse-resize;
+    background:
+      linear-gradient(135deg, transparent 45%, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.35) 55%, transparent 55%),
+      linear-gradient(135deg, transparent 65%, rgba(0,0,0,0.35) 65%, rgba(0,0,0,0.35) 75%, transparent 75%);
+  }
+
+  /* ---------- MINI TOOLBAR (per-block controls) ---------- */
+  .mini-toolbar{
+    position:absolute;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    background:#1f2536;
+    padding:6px 8px;
+    border-radius:8px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.3);
+    z-index:600;
+    white-space:nowrap;
+  }
+  .mini-toolbar .swatch{
+    width:18px;height:18px;
+    border-radius:50%;
+    cursor:pointer;
+    border:2px solid transparent;
+  }
+  .mini-toolbar .swatch.active{border-color:#fff;}
+  .mini-toolbar select{
+    font-size:12px;
+    padding:3px 4px;
+    border-radius:4px;
+    border:none;
+  }
+  .mini-toolbar button.style-btn{
+    width:24px;height:24px;
+    border-radius:4px;
+    border:none;
+    background:#333c54;
+    color:#fff;
+    cursor:pointer;
+    font-size:13px;
+  }
+  .mini-toolbar button.style-btn.active{background:#c1571f;}
+  .mini-toolbar .divider{width:1px;height:18px;background:#3c4560;}
+
+  /* ---------- PRINT ---------- */
+  #printArea{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    #printArea, #printArea *{visibility:visible;}
+    #printArea{display:block; position:absolute; left:0; top:0; margin:0; padding:0;}
+    .print-page{
+      position:relative;
+      overflow:hidden;
+      page-break-after:always;
+      background:#f4f1ea;
+    }
+    .print-page:last-child{page-break-after:auto;}
+    .print-block{
+      position:absolute;
+      border-left-width:8px;
+      border-left-style:solid;
+      border-radius:2px;
+      padding:16px 18px;
+      box-shadow:none;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1 id="title" contenteditable="true" spellcheck="false">Cubit Project Flow</h1>
+    <div class="toolbar">
+      <div class="toolbar-group">
+        <button id="undoBtn" title="Undo">&#8630;</button>
+        <button id="redoBtn" title="Redo">&#8631;</button>
+      </div>
+      <div class="toolbar-group">
+        <span class="label">PAGE</span>
+        <button data-page-zoom="-1">&minus;</button>
+        <span class="value" id="pageZoomVal">100%</span>
+        <button data-page-zoom="1">+</button>
+        <button id="pageZoomReset">Reset</button>
+      </div>
+      <div class="toolbar-group">
+        <span class="label">BLOCKS</span>
+        <button data-block-zoom="-1">&minus;</button>
+        <span class="value" id="blockZoomVal">100%</span>
+        <button data-block-zoom="1">+</button>
+        <button id="blockZoomReset">Reset</button>
+      </div>
+      <button class="btn" id="addNoteBtn">+ add note</button>
+      <button class="btn" id="clearBtn">Clear board</button>
+      <button class="btn btn-primary" id="exportBtn">Export PDF</button>
+    </div>
+    <div class="toolbar">
+      <div class="toolbar-group">
+        <span class="label">PAGES ACROSS</span>
+        <button data-pages-across="-1">&minus;</button>
+        <span class="value" id="pagesAcrossVal">1</span>
+        <button data-pages-across="1">+</button>
+      </div>
+      <div class="toolbar-group">
+        <span class="label">PAGES DOWN</span>
+        <button data-pages-down="-1">&minus;</button>
+        <span class="value" id="pagesDownVal">1</span>
+        <button data-pages-down="1">+</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="viewport">
+    <div id="canvas"></div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- constants ----
+  var PAGE_W = 1632; // 17in @ 96dpi (tabloid landscape width)
+  var PAGE_H = 1056; // 11in @ 96dpi
+  var MIN_W = 160, MIN_H = 90;
+
+  var PALETTE = [
+    {name:'blue',   accent:'#2f5fa8', bg:'#dce9f7'},
+    {name:'gold',   accent:'#c9971f', bg:'#faf1d6'},
+    {name:'orange', accent:'#c1571f', bg:'#fbe3d2'},
+    {name:'olive',  accent:'#5a7d2a', bg:'#e6efd4'},
+    {name:'teal',   accent:'#2f8f6f', bg:'#dcf1e8'},
+    {name:'purple', accent:'#6a3fa0', bg:'#e7ddf4'}
+  ];
+
+  var FONTS = [
+    {label:'Sans', value:"'Segoe UI', system-ui, sans-serif"},
+    {label:'Serif', value:"Georgia, 'Times New Roman', serif"},
+    {label:'Mono', value:"'Courier New', monospace"},
+    {label:'Condensed', value:"'Arial Narrow', Arial, sans-serif"}
+  ];
+
+  // ---- state ----
+  var state = {
+    title: 'Cubit Project Flow',
+    pageZoom: 81,
+    blockZoom: 100,
+    pagesAcross: 1,
+    pagesDown: 1,
+    nextColor: 0,
+    blocks: []
+  };
+
+  function uid(){ return 'b' + Math.random().toString(36).slice(2,9); }
+
+  function defaultBlocks(){
+    return [
+      mkBlock(40, 30, 480, 130, "New task", 0),
+      mkBlock(280, 200, 220, 110, "Another task", 1)
+    ];
+  }
+
+  function mkBlock(x,y,w,h,text,colorIdx){
+    return {
+      id: uid(), x:x, y:y, w:w, h:h, text:text,
+      color: colorIdx % PALETTE.length,
+      font: FONTS[0].value,
+      size: 17,
+      bold:true, italic:false,
+      checked:false
+    };
+  }
+
+  // ---- persistence (best effort; degrades quietly if storage is unavailable) ----
+  var STORAGE_KEY = 'cubit-project-flow-v1';
+  function save(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }catch(e){ /* storage unavailable in this context - continue in-memory only */ }
+  }
+  function load(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(parsed && Array.isArray(parsed.blocks)){
+          Object.assign(state, parsed);
+          return true;
+        }
+      }
+    }catch(e){ /* ignore */ }
+    return false;
+  }
+
+  // ---- undo / redo ----
+  var history = [], future = [];
+  function snapshot(){
+    return JSON.stringify(state);
+  }
+  function pushHistory(){
+    history.push(snapshot());
+    if(history.length > 60) history.shift();
+    future.length = 0;
+  }
+  function undo(){
+    if(!history.length) return;
+    future.push(snapshot());
+    var prev = history.pop();
+    Object.assign(state, JSON.parse(prev));
+    render();
+  }
+  function redo(){
+    if(!future.length) return;
+    history.push(snapshot());
+    var next = future.pop();
+    Object.assign(state, JSON.parse(next));
+    render();
+  }
+
+  // ---- DOM refs ----
+  var canvas = document.getElementById('canvas');
+  var viewport = document.getElementById('viewport');
+  var titleEl = document.getElementById('title');
+
+  titleEl.addEventListener('blur', function(){
+    pushHistory();
+    state.title = titleEl.textContent.trim() || 'Cubit Project Flow';
+    save();
+  });
+
+  // ---- selection / mini toolbar ----
+  var selectedId = null;
+  var miniToolbarEl = null;
+
+  function closeMiniToolbar(){
+    if(miniToolbarEl){ miniToolbarEl.remove(); miniToolbarEl = null; }
+    selectedId = null;
+    document.querySelectorAll('.block.selected').forEach(function(b){ b.classList.remove('selected'); });
+  }
+
+  function openMiniToolbar(block, el){
+    closeMiniToolbar();
+    selectedId = block.id;
+    el.classList.add('selected');
+
+    var bar = document.createElement('div');
+    bar.className = 'mini-toolbar';
+
+    // color swatches
+    PALETTE.forEach(function(p, idx){
+      var sw = document.createElement('div');
+      sw.className = 'swatch' + (idx === block.color ? ' active' : '');
+      sw.style.background = p.accent;
+      sw.title = p.name;
+      sw.addEventListener('click', function(e){
+        e.stopPropagation();
+        pushHistory();
+        block.color = idx;
+        save(); render();
+      });
+      bar.appendChild(sw);
+    });
+
+    var div1 = document.createElement('div'); div1.className='divider'; bar.appendChild(div1);
+
+    // font family
+    var fontSel = document.createElement('select');
+    FONTS.forEach(function(f){
+      var opt = document.createElement('option');
+      opt.value = f.value; opt.textContent = f.label;
+      if(f.value === block.font) opt.selected = true;
+      fontSel.appendChild(opt);
+    });
+    fontSel.addEventListener('change', function(){
+      pushHistory();
+      block.font = fontSel.value;
+      save(); render();
+    });
+    bar.appendChild(fontSel);
+
+    // font size
+    var sizeSel = document.createElement('select');
+    [12,13,14,15,16,17,19,21,24,28,32,38].forEach(function(s){
+      var opt = document.createElement('option');
+      opt.value = s; opt.textContent = s + 'px';
+      if(s === block.size) opt.selected = true;
+      sizeSel.appendChild(opt);
+    });
+    sizeSel.addEventListener('change', function(){
+      pushHistory();
+      block.size = parseInt(sizeSel.value, 10);
+      save(); render();
+    });
+    bar.appendChild(sizeSel);
+
+    var div2 = document.createElement('div'); div2.className='divider'; bar.appendChild(div2);
+
+    // bold / italic
+    var boldBtn = document.createElement('button');
+    boldBtn.className = 'style-btn' + (block.bold ? ' active' : '');
+    boldBtn.innerHTML = '<b>B</b>';
+    boldBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      pushHistory();
+      block.bold = !block.bold;
+      save(); render();
+    });
+    bar.appendChild(boldBtn);
+
+    var italBtn = document.createElement('button');
+    italBtn.className = 'style-btn' + (block.italic ? ' active' : '');
+    italBtn.innerHTML = '<i>I</i>';
+    italBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      pushHistory();
+      block.italic = !block.italic;
+      save(); render();
+    });
+    bar.appendChild(italBtn);
+
+    canvas.appendChild(bar);
+    positionMiniToolbar(bar, block);
+    miniToolbarEl = bar;
+  }
+
+  function positionMiniToolbar(bar, block){
+    bar.style.left = block.x + 'px';
+    bar.style.top = (block.y - 44) + 'px';
+  }
+
+  // ---- rendering ----
+  function applyTransform(){
+    var pScale = state.pageZoom / 100;
+    canvas.style.transform = 'scale(' + pScale + ')';
+    canvas.style.width = (state.pagesAcross * PAGE_W) + 'px';
+    canvas.style.height = (state.pagesDown * PAGE_H) + 'px';
+    viewport.style.paddingBottom = '40px';
+  }
+
+  function renderPageGuides(){
+    document.querySelectorAll('.page-guide, .page-tag').forEach(function(n){ n.remove(); });
+    for(var py=0; py<state.pagesDown; py++){
+      for(var px=0; px<state.pagesAcross; px++){
+        var g = document.createElement('div');
+        g.className = 'page-guide';
+        g.style.left = (px*PAGE_W) + 'px';
+        g.style.top = (py*PAGE_H) + 'px';
+        g.style.width = PAGE_W + 'px';
+        g.style.height = PAGE_H + 'px';
+        canvas.appendChild(g);
+
+        var tag = document.createElement('div');
+        tag.className = 'page-tag';
+        tag.textContent = 'PAGE ' + (py*state.pagesAcross+px+1) + ' \u2022 TABLOID 17\u00d711';
+        tag.style.left = (px*PAGE_W + 8) + 'px';
+        tag.style.top = (py*PAGE_H + 6) + 'px';
+        canvas.appendChild(tag);
+      }
+    }
+  }
+
+  function render(){
+    titleEl.textContent = state.title;
+    document.getElementById('pageZoomVal').textContent = state.pageZoom + '%';
+    document.getElementById('blockZoomVal').textContent = state.blockZoom + '%';
+    document.getElementById('pagesAcrossVal').textContent = state.pagesAcross;
+    document.getElementById('pagesDownVal').textContent = state.pagesDown;
+
+    canvas.innerHTML = '';
+    applyTransform();
+    renderPageGuides();
+
+    var bScale = state.blockZoom / 100;
+
+    state.blocks.forEach(function(block){
+      var pal = PALETTE[block.color];
+      var el = document.createElement('div');
+      el.className = 'block';
+      el.dataset.id = block.id;
+      el.style.left = block.x + 'px';
+      el.style.top = block.y + 'px';
+      el.style.width = block.w + 'px';
+      el.style.height = block.h + 'px';
+      el.style.background = pal.bg;
+      el.style.borderLeftColor = pal.accent;
+      el.style.transform = 'scale(' + bScale + ')';
+
+      var top = document.createElement('div');
+      top.className = 'block-top';
+
+      var dot = document.createElement('div');
+      dot.className = 'status-dot' + (block.checked ? ' done' : '');
+      dot.addEventListener('click', function(e){
+        e.stopPropagation();
+        pushHistory();
+        block.checked = !block.checked;
+        save(); render();
+      });
+      top.appendChild(dot);
+
+      var del = document.createElement('button');
+      del.className = 'del-btn';
+      del.textContent = '\u00d7';
+      del.addEventListener('click', function(e){
+        e.stopPropagation();
+        pushHistory();
+        state.blocks = state.blocks.filter(function(b){ return b.id !== block.id; });
+        closeMiniToolbar();
+        save(); render();
+      });
+      top.appendChild(del);
+
+      el.appendChild(top);
+
+      var txt = document.createElement('div');
+      txt.className = 'block-text';
+      txt.contentEditable = 'true';
+      txt.spellcheck = false;
+      txt.textContent = block.text;
+      txt.style.fontFamily = block.font;
+      txt.style.fontSize = block.size + 'px';
+      txt.style.fontWeight = block.bold ? '700' : '400';
+      txt.style.fontStyle = block.italic ? 'italic' : 'normal';
+      txt.style.color = '#22283a';
+      txt.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+      txt.addEventListener('blur', function(){
+        var newText = txt.textContent;
+        if(newText !== block.text){
+          pushHistory();
+          block.text = newText;
+          save();
+        }
+      });
+      el.appendChild(txt);
+
+      var handle = document.createElement('div');
+      handle.className = 'resize-handle';
+      el.appendChild(handle);
+
+      // select / open mini toolbar
+      el.addEventListener('pointerdown', function(e){
+        if(e.target === handle) return;
+        if(e.target === txt) return;
+        openMiniToolbar(block, el);
+      });
+
+      // ---- drag ----
+      el.addEventListener('pointerdown', function(e){
+        if(e.target === handle || e.target === txt || e.target === dot || e.target === del) return;
+        e.preventDefault();
+        var startX = e.clientX, startY = e.clientY;
+        var origX = block.x, origY = block.y;
+        var scale = (state.pageZoom/100) * (state.blockZoom/100);
+        var moved = false;
+        el.classList.add('dragging');
+        pushHistory();
+
+        function onMove(ev){
+          var dx = (ev.clientX - startX) / scale;
+          var dy = (ev.clientY - startY) / scale;
+          if(Math.abs(dx) > 1 || Math.abs(dy) > 1) moved = true;
+          block.x = Math.max(0, origX + dx);
+          block.y = Math.max(0, origY + dy);
+          el.style.left = block.x + 'px';
+          el.style.top = block.y + 'px';
+          if(miniToolbarEl && selectedId === block.id) positionMiniToolbar(miniToolbarEl, block);
+        }
+        function onUp(){
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+          el.classList.remove('dragging');
+          if(!moved){ history.pop(); } // no real change, discard history entry
+          save();
+        }
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+      });
+
+      // ---- resize ----
+      handle.addEventListener('pointerdown', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        var startX = e.clientX, startY = e.clientY;
+        var origW = block.w, origH = block.h;
+        var scale = (state.pageZoom/100) * (state.blockZoom/100);
+        pushHistory();
+
+        function onMove(ev){
+          var dw = (ev.clientX - startX) / scale;
+          var dh = (ev.clientY - startY) / scale;
+          block.w = Math.max(MIN_W, origW + dw);
+          block.h = Math.max(MIN_H, origH + dh);
+          el.style.width = block.w + 'px';
+          el.style.height = block.h + 'px';
+        }
+        function onUp(){
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+          save();
+        }
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+      });
+
+      canvas.appendChild(el);
+
+      if(selectedId === block.id){
+        openMiniToolbarQuiet(block, el);
+      }
+    });
+  }
+
+  // re-open toolbar without resetting selection state (used after full re-render)
+  function openMiniToolbarQuiet(block, el){
+    var bar = miniToolbarEl;
+    miniToolbarEl = null;
+    if(bar) bar.remove();
+    openMiniToolbar(block, el);
+  }
+
+  // click outside closes toolbar
+  viewport.addEventListener('pointerdown', function(e){
+    if(e.target === viewport || e.target === canvas){
+      closeMiniToolbar();
+    }
+  });
+
+  // ---- toolbar wiring ----
+  document.getElementById('undoBtn').addEventListener('click', undo);
+  document.getElementById('redoBtn').addEventListener('click', redo);
+
+  document.querySelectorAll('[data-page-zoom]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var d = parseInt(btn.dataset.pageZoom, 10);
+      state.pageZoom = Math.min(200, Math.max(20, state.pageZoom + d*5));
+      save(); render();
+    });
+  });
+  document.getElementById('pageZoomReset').addEventListener('click', function(){
+    state.pageZoom = 100; save(); render();
+  });
+
+  document.querySelectorAll('[data-block-zoom]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var d = parseInt(btn.dataset.blockZoom, 10);
+      state.blockZoom = Math.min(200, Math.max(40, state.blockZoom + d*5));
+      save(); render();
+    });
+  });
+  document.getElementById('blockZoomReset').addEventListener('click', function(){
+    state.blockZoom = 100; save(); render();
+  });
+
+  document.querySelectorAll('[data-pages-across]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var d = parseInt(btn.dataset.pagesAcross, 10);
+      state.pagesAcross = Math.min(6, Math.max(1, state.pagesAcross + d));
+      save(); render();
+    });
+  });
+  document.querySelectorAll('[data-pages-down]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var d = parseInt(btn.dataset.pagesDown, 10);
+      state.pagesDown = Math.min(6, Math.max(1, state.pagesDown + d));
+      save(); render();
+    });
+  });
+
+  document.getElementById('addNoteBtn').addEventListener('click', function(){
+    pushHistory();
+    var idx = state.nextColor % PALETTE.length;
+    state.nextColor++;
+    // place new note in a loosely cascading position within the visible page
+    var n = state.blocks.length;
+    var x = 60 + (n % 5) * 40;
+    var y = 60 + (n % 5) * 40;
+    state.blocks.push(mkBlock(x, y, 260, 120, 'New task', idx));
+    save(); render();
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', function(){
+    if(!confirm('Clear the board? This removes all notes.')) return;
+    pushHistory();
+    state.blocks = [];
+    closeMiniToolbar();
+    save(); render();
+  });
+
+  // ---- PDF export: tile the canvas into real tabloid (17x11in) print pages ----
+  function buildPrintPages(){
+    var printArea = document.getElementById('printArea');
+    printArea.innerHTML = '';
+
+    var styleTag = document.getElementById('dynamicPageSize');
+    if(!styleTag){
+      styleTag = document.createElement('style');
+      styleTag.id = 'dynamicPageSize';
+      document.head.appendChild(styleTag);
+    }
+    styleTag.textContent = '@page{ size: 17in 11in; margin:0; }';
+
+    for(var py=0; py<state.pagesDown; py++){
+      for(var px=0; px<state.pagesAcross; px++){
+        var page = document.createElement('div');
+        page.className = 'print-page';
+        page.style.width = PAGE_W + 'px';
+        page.style.height = PAGE_H + 'px';
+
+        var inner = document.createElement('div');
+        inner.style.position = 'absolute';
+        inner.style.left = (-px*PAGE_W) + 'px';
+        inner.style.top = (-py*PAGE_H) + 'px';
+        inner.style.width = (state.pagesAcross*PAGE_W) + 'px';
+        inner.style.height = (state.pagesDown*PAGE_H) + 'px';
+
+        state.blocks.forEach(function(block){
+          var pal = PALETTE[block.color];
+          var b = document.createElement('div');
+          b.className = 'print-block';
+          b.style.left = block.x + 'px';
+          b.style.top = block.y + 'px';
+          b.style.width = block.w + 'px';
+          b.style.height = block.h + 'px';
+          b.style.background = pal.bg;
+          b.style.borderLeftColor = pal.accent;
+
+          var t = document.createElement('div');
+          t.style.marginTop = '20px';
+          t.style.whiteSpace = 'pre-wrap';
+          t.style.wordBreak = 'break-word';
+          t.style.fontFamily = block.font;
+          t.style.fontSize = block.size + 'px';
+          t.style.fontWeight = block.bold ? '700' : '400';
+          t.style.fontStyle = block.italic ? 'italic' : 'normal';
+          t.style.color = '#22283a';
+          t.textContent = block.text;
+          b.appendChild(t);
+
+          if(block.checked){
+            var mark = document.createElement('div');
+            mark.style.position='absolute'; mark.style.top='8px'; mark.style.left='8px';
+            mark.style.width='14px'; mark.style.height='14px';
+            mark.style.borderRadius='50%';
+            mark.style.background='rgba(0,0,0,0.45)';
+            b.appendChild(mark);
+          }
+          inner.appendChild(b);
+        });
+
+        page.appendChild(inner);
+        printArea.appendChild(page);
+      }
+    }
+  }
+
+  document.getElementById('exportBtn').addEventListener('click', function(){
+    closeMiniToolbar();
+    buildPrintPages();
+    setTimeout(function(){ window.print(); }, 50);
+  });
+
+  // ---- init ----
+  if(!load()){
+    state.blocks = defaultBlocks();
+  }
+  render();
+
+  window.addEventListener('keydown', function(e){
+    var tag = (e.target && e.target.tagName) || '';
+    if(tag === 'DIV' && e.target.isContentEditable) return;
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey){ e.preventDefault(); undo(); }
+    if((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase()==='z'))){ e.preventDefault(); redo(); }
+  });
+
+})();
+</script>
+</body>
+</html>
